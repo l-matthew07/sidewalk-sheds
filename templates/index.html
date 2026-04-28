@@ -298,25 +298,25 @@
 
       <div class="panel">
         <span class="label">Route Addresses</span>
-        <form class="address-form" id="address-form">
-          <label class="address-field">
-            <span class="label" style="margin-bottom: 0;">Point A</span>
-            <input class="text-input" id="point-a-input" name="point-a" type="text"
-              placeholder="350 5th Ave, New York, NY" autocomplete="street-address">
-          </label>
-          <label class="address-field">
-            <span class="label" style="margin-bottom: 0;">Point B</span>
-            <input class="text-input" id="point-b-input" name="point-b" type="text"
-              placeholder="11 Wall St, New York, NY" autocomplete="street-address">
-          </label>
+          <form class="address-form" id="address-form">
+            <label class="address-field">
+              <span class="label" style="margin-bottom: 0;">Your Location</span>
+              <input class="text-input" id="point-a-input" name="point-a" type="text"
+                placeholder="350 5th Ave, New York, NY" autocomplete="street-address">
+            </label>
+            <label class="address-field">
+              <span class="label" style="margin-bottom: 0;">Destination</span>
+              <input class="text-input" id="point-b-input" name="point-b" type="text"
+                placeholder="11 Wall St, New York, NY" autocomplete="street-address">
+            </label>
           <button class="submit-button" id="address-submit" type="submit">Route Between Addresses</button>
         </form>
       </div>
 
       <div class="panel">
-        <span class="label">Resolved Point A</span>
+        <span class="label">Resolved Location</span>
         <div class="point-value" id="point-a">Not set</div>
-        <span class="label" style="margin-top: 12px;">Resolved Point B</span>
+        <span class="label" style="margin-top: 12px;">Resolved Destination</span>
         <div class="point-value" id="point-b">Not set</div>
       </div>
 
@@ -324,7 +324,7 @@
         <span class="label">Route Preference</span>
         <div class="detour-options">
           <button class="detour-button" data-mode="minimal" type="button">
-            <strong>🟢 Stay close</strong>
+            <strong>🟢 Minimal detour</strong>
             <span>Minimal detour, up to 10% longer.</span>
           </button>
           <button class="detour-button" data-mode="moderate" type="button">
@@ -367,8 +367,8 @@
             route</span></div>
         <div class="legend-row"><span class="swatch" style="background: var(--green);"></span><span>Weather-aware
             scaffold route</span></div>
-        <div class="legend-row"><span class="swatch" style="background: var(--a);"></span><span>Point A</span></div>
-        <div class="legend-row"><span class="swatch" style="background: var(--b);"></span><span>Point B</span></div>
+        <div class="legend-row"><span class="swatch" style="background: var(--a);"></span><span>Your location</span></div>
+        <div class="legend-row"><span class="swatch" style="background: var(--b);"></span><span>Destination</span></div>
       </div>
 
       <div class="site-credit">
@@ -480,18 +480,18 @@
       }).bindTooltip(label, { permanent: true, direction: "top", offset: [0, -10] }).addTo(routeLayer);
     }
 
-    function redrawEndpoints() {
-      routeLayer.clearLayers();
-      pointAMarker = null;
-      pointBMarker = null;
+      function redrawEndpoints() {
+        routeLayer.clearLayers();
+        pointAMarker = null;
+        pointBMarker = null;
 
-      if (pointA) {
-        pointAMarker = addEndpointMarker(pointA, "A", "#047857");
+        if (pointA) {
+          pointAMarker = addEndpointMarker(pointA, "You", "#047857");
+        }
+        if (pointB) {
+          pointBMarker = addEndpointMarker(pointB, "Dest", "#7c3aed");
+        }
       }
-      if (pointB) {
-        pointBMarker = addEndpointMarker(pointB, "B", "#7c3aed");
-      }
-    }
 
     function clearRoutes() {
       if (shortestRouteLayer) {
