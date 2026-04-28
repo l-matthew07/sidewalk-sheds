@@ -29,7 +29,7 @@ python3 fetch_scaffolds.py
 python3 app.py
 ```
 
-Then open `http://127.0.0.1:5000`.
+Then open `http://127.0.0.1:5000` and enter two addresses to compare routes.
 
 ## Optional environment variables
 
@@ -37,5 +37,6 @@ Then open `http://127.0.0.1:5000`.
 - `NYC_GEOCLIENT_APP_ID`: use NYC GeoClient for missing coordinates.
 - `NYC_GEOCLIENT_APP_KEY`: paired with `NYC_GEOCLIENT_APP_ID`.
 - `NOMINATIM_EMAIL`: optional contact email for Nominatim requests.
+- `GOOGLE_MAPS_API_KEY`: optional. If set, `/api/geocode` uses Google Geocoding first and falls back to Nominatim if needed.
 
 If GeoClient credentials are not set, the script falls back to Nominatim.
