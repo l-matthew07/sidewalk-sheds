@@ -7,7 +7,8 @@ It does three things:
 1. Probes the live NYC Open Data endpoints and prints sample raw fields.
 2. Builds a cleaned list of active scaffold permit locations.
 3. Fills in missing coordinates with NYC GeoClient or Nominatim, then writes `scaffolds.json`.
-4. Serves a one-page Flask + Leaflet viewer for route inspection.
+4. Precomputes a lightweight Manhattan routing bundle for deployment.
+5. Serves a one-page Flask + Leaflet viewer for route inspection.
 
 ## Setup
 
@@ -22,6 +23,21 @@ pip install -r requirements.txt
 ```bash
 python3 fetch_scaffolds.py
 ```
+
+## Precompute Routing Data
+
+The production app does not use `osmnx` or `networkx` at runtime. Instead, generate a lightweight routing bundle locally:
+
+```bash
+python3 precompute.py
+```
+
+This creates:
+
+- `graph_data.pkl`: committed deployment artifact used by `app.py`
+- `scaffold_edges.json`: optional debug output showing scaffold counts per edge
+
+If you need to run `precompute.py`, install `osmnx` and `networkx` locally in your own environment. They are intentionally not listed in `requirements.txt` because they should never be installed on the server.
 
 ## Run The Web App
 
@@ -38,6 +54,11 @@ Use this start command:
 ```bash
 gunicorn app:app --bind 0.0.0.0:$PORT
 ```
+
+Make sure these files are present in the deployed repo:
+
+- `scaffolds.json`
+- `graph_data.pkl`
 
 ## Optional environment variables
 

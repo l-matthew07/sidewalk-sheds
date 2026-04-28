@@ -1,23 +1,22 @@
 #!/usr/bin/env python3
 import json
 import os
+import pickle
 import threading
 import time
+import tracemalloc
 from pathlib import Path
-from typing import Any, Dict, Hashable, List, Optional, Sequence, Tuple
+from typing import Dict, List, Tuple
 
-import networkx as nx
-import numpy as np
-import osmnx as ox
 import requests
 from flask import Flask, jsonify, render_template, request
-from pyproj import Transformer
-from shapely import wkt
-from shapely.geometry import LineString, Point
+
+from router import ScaffoldRouter
+
 
 BASE_DIR = Path(__file__).resolve().parent
 SCAFFOLDS_PATH = BASE_DIR / "scaffolds.json"
-GRAPHML_PATH = BASE_DIR / "manhattan_walk.graphml"
+GRAPH_DATA_PATH = BASE_DIR / "graph_data.pkl"
 WTTR_URL = "https://wttr.in/New York"
 GOOGLE_GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
 NOMINATIM_SEARCH_URL = "https://nominatim.openstreetmap.org/search"
@@ -33,11 +32,9 @@ DETOUR_LAMBDAS = {
     "max": 1.2,
 }
 
-EdgeKey = Tuple[Hashable, Hashable, Hashable]
-
 app = Flask(__name__)
 HTTP = requests.Session()
-HTTP.headers.update({"User-Agent": "SidewalkShed/0.4"})
+HTTP.headers.update({"User-Agent": "SidewalkShed/0.5"})
 WEATHER_LOCK = threading.Lock()
 WEATHER_CACHE: Dict[str, object] = {"fetched_at": 0.0, "payload": None}
 
@@ -60,13 +57,6 @@ DEV_WEATHER_OVERRIDE = {
     "suggested_mode": "max",
 }
 GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY")
-
-
-def normalize_float(raw: Any, default: float = 0.0) -> float:
-    try:
-        return float(raw)
-    except (TypeError, ValueError):
-        return default
 
 
 def parse_point(payload: Dict[str, object], key: str) -> Tuple[float, float]:
@@ -104,226 +94,6 @@ def load_scaffolds() -> List[Dict[str, object]]:
     return cleaned
 
 
-def coerce_graph_types(graph: nx.MultiDiGraph) -> nx.MultiDiGraph:
-    for _, data in graph.nodes(data=True):
-        data["x"] = normalize_float(data.get("x"))
-        data["y"] = normalize_float(data.get("y"))
-
-    for _, _, _, data in graph.edges(keys=True, data=True):
-        data["length"] = normalize_float(data.get("length"), 1.0)
-        geometry = data.get("geometry")
-        if isinstance(geometry, str) and geometry:
-            try:
-                data["geometry"] = wkt.loads(geometry)
-            except Exception:
-                data.pop("geometry", None)
-
-    return graph
-
-
-def load_graph() -> nx.MultiDiGraph:
-    if GRAPHML_PATH.exists():
-        graph = ox.load_graphml(filepath=str(GRAPHML_PATH))
-    else:
-        graph = ox.graph_from_place(
-            "Manhattan, New York, USA",
-            network_type="walk",
-            retain_all=False,
-        )
-        ox.save_graphml(graph, filepath=str(GRAPHML_PATH))
-
-    graph = coerce_graph_types(graph)
-    log(f"Graph loaded: {graph.number_of_nodes()} nodes, {graph.number_of_edges()} edges")
-    return graph
-
-
-def edge_length(data: Dict[str, Any]) -> float:
-    return normalize_float(data.get("length"), 1.0)
-
-
-def route_edge_weight(
-    scaffold_counts: Dict[EdgeKey, int],
-    lambda_val: float,
-    u: Hashable,
-    v: Hashable,
-    key: Hashable,
-    data: Dict[str, Any],
-) -> float:
-    base = edge_length(data)
-    bonus = scaffold_counts.get((u, v, key), 0) * lambda_val
-    return max(base * 0.1, base - bonus)
-
-
-def make_weight_fn(scaffold_counts: Dict[EdgeKey, int], lambda_val: float):
-    def weight_fn(u: Hashable, v: Hashable, data: Dict[str, Any]) -> float:
-        if "length" in data:
-            return route_edge_weight(scaffold_counts, lambda_val, u, v, 0, data)
-
-        return min(
-            route_edge_weight(scaffold_counts, lambda_val, u, v, key, attrs)
-            for key, attrs in data.items()
-        )
-
-    return weight_fn
-
-
-def precompute_scaffold_coverage(
-    graph: nx.MultiDiGraph,
-    transformer: Transformer,
-    scaffolds: Sequence[Dict[str, object]],
-) -> Dict[EdgeKey, int]:
-    scaffold_counts: Dict[EdgeKey, int] = {}
-    if not scaffolds:
-        return scaffold_counts
-
-    lngs = [float(scaffold["lng"]) for scaffold in scaffolds]
-    lats = [float(scaffold["lat"]) for scaffold in scaffolds]
-    xs, ys = transformer.transform(lngs, lats)
-    nearest_edges = ox.nearest_edges(graph, xs, ys)
-
-    if (
-        isinstance(nearest_edges, tuple)
-        and len(nearest_edges) == 3
-        and all(hasattr(part, "__len__") for part in nearest_edges)
-    ):
-        edge_iter = zip(nearest_edges[0], nearest_edges[1], nearest_edges[2])
-    else:
-        edge_iter = nearest_edges
-
-    for edge in edge_iter:
-        scaffold_counts[edge] = scaffold_counts.get(edge, 0) + 1
-    return scaffold_counts
-
-
-def node_xy(graph: nx.MultiDiGraph, node: Hashable) -> Tuple[float, float]:
-    data = graph.nodes[node]
-    return float(data["x"]), float(data["y"])
-
-
-def sq_dist(a: Tuple[float, float], b: Tuple[float, float]) -> float:
-    dx = a[0] - b[0]
-    dy = a[1] - b[1]
-    return (dx * dx) + (dy * dy)
-
-
-def edge_coordinates(
-    graph: nx.MultiDiGraph,
-    u: Hashable,
-    v: Hashable,
-    data: Dict[str, Any],
-) -> List[Tuple[float, float]]:
-    start = node_xy(graph, u)
-    end = node_xy(graph, v)
-    geometry = data.get("geometry")
-
-    if geometry is not None and hasattr(geometry, "coords"):
-        coords = [(float(x), float(y)) for x, y in geometry.coords]
-    else:
-        coords = [start, end]
-
-    direct = sq_dist(coords[0], start) + sq_dist(coords[-1], end)
-    reverse = sq_dist(coords[0], end) + sq_dist(coords[-1], start)
-    if reverse < direct:
-        coords.reverse()
-    return coords
-
-
-def select_edge_variant(
-    graph: nx.MultiDiGraph,
-    scaffold_counts: Dict[EdgeKey, int],
-    lambda_val: float,
-    u: Hashable,
-    v: Hashable,
-    weighted: bool,
-) -> Tuple[Hashable, Dict[str, Any]]:
-    edge_bundle = graph.get_edge_data(u, v)
-    if edge_bundle is None:
-        raise KeyError(f"Missing edge for {u}->{v}")
-
-    if "length" in edge_bundle:
-        return 0, edge_bundle
-
-    def sort_key(item: Tuple[Hashable, Dict[str, Any]]) -> Tuple[float, float]:
-        key, data = item
-        if weighted:
-            return (
-                route_edge_weight(scaffold_counts, lambda_val, u, v, key, data),
-                edge_length(data),
-            )
-        return (edge_length(data), edge_length(data))
-
-    return min(edge_bundle.items(), key=sort_key)
-
-
-def edge_midpoint(coords: Sequence[Tuple[float, float]]) -> Tuple[float, float]:
-    line = LineString(coords)
-    midpoint = line.interpolate(0.5, normalized=True)
-    return float(midpoint.x), float(midpoint.y)
-
-
-def route_scaffold_count(
-    route_geometry: Dict[str, object],
-    scaffolds: Sequence[Dict[str, object]],
-) -> int:
-    coordinates = route_geometry.get("coordinates", [])
-    if len(coordinates) < 2:
-        return 0
-
-    line = LineString(coordinates)
-    return sum(
-        1
-        for scaffold in scaffolds
-        if line.distance(Point(float(scaffold["lng"]), float(scaffold["lat"])))
-        < ROUTE_HIT_THRESHOLD_DEGREES
-    )
-
-
-def build_route_payload(
-    graph: nx.MultiDiGraph,
-    scaffold_counts: Dict[EdgeKey, int],
-    scaffolds: Sequence[Dict[str, object]],
-    nodes: Sequence[Hashable],
-    lambda_val: float,
-    weighted: bool,
-) -> Dict[str, object]:
-    coordinates: List[Tuple[float, float]] = []
-    scaffold_waypoints: List[Dict[str, object]] = []
-    distance_m = 0.0
-
-    for u, v in zip(nodes, nodes[1:]):
-        key, data = select_edge_variant(graph, scaffold_counts, lambda_val, u, v, weighted)
-        edge_coords = edge_coordinates(graph, u, v, data)
-        distance_m += edge_length(data)
-
-        if coordinates and coordinates[-1] == edge_coords[0]:
-            coordinates.extend(edge_coords[1:])
-        else:
-            coordinates.extend(edge_coords)
-
-        nearby_scaffolds = scaffold_counts.get((u, v, key), 0)
-        if nearby_scaffolds > 0:
-            midpoint_lng, midpoint_lat = edge_midpoint(edge_coords)
-            scaffold_waypoints.append(
-                {
-                    "lat": midpoint_lat,
-                    "lng": midpoint_lng,
-                    "covered": nearby_scaffolds,
-                }
-            )
-
-    geometry = {
-        "type": "LineString",
-        "coordinates": coordinates,
-    }
-    return {
-        "geojson": geometry,
-        "distance_m": distance_m,
-        "duration_s": distance_m / WALKING_SPEED_MPS,
-        "scaffolds_covered": route_scaffold_count(geometry, scaffolds),
-        "waypoints": scaffold_waypoints,
-    }
-
-
 def normalize_precip_mm(raw: object) -> float:
     try:
         return max(0.0, float(raw))
@@ -355,17 +125,13 @@ def fetch_weather() -> Dict[str, object]:
     }
 
 
-def google_geocode(address: str) -> Optional[Dict[str, object]]:
+def google_geocode(address: str):
     if not GOOGLE_MAPS_API_KEY:
         return None
 
     response = HTTP.get(
         GOOGLE_GEOCODE_URL,
-        params={
-            "address": address,
-            "key": GOOGLE_MAPS_API_KEY,
-            "region": "us",
-        },
+        params={"address": address, "key": GOOGLE_MAPS_API_KEY, "region": "us"},
         timeout=GEOCODE_TIMEOUT_SECONDS,
     )
     response.raise_for_status()
@@ -392,15 +158,10 @@ def google_geocode(address: str) -> Optional[Dict[str, object]]:
     }
 
 
-def nominatim_geocode(address: str) -> Optional[Dict[str, object]]:
+def nominatim_geocode(address: str):
     response = HTTP.get(
         NOMINATIM_SEARCH_URL,
-        params={
-            "q": address,
-            "format": "jsonv2",
-            "limit": "1",
-            "addressdetails": "1",
-        },
+        params={"q": address, "format": "jsonv2", "limit": "1", "addressdetails": "1"},
         timeout=GEOCODE_TIMEOUT_SECONDS,
     )
     response.raise_for_status()
@@ -459,53 +220,52 @@ def get_weather(force: bool = False) -> Dict[str, object]:
     return payload
 
 
-def build_node_index(graph: nx.MultiDiGraph) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    node_ids = np.array(list(graph.nodes()), dtype=object)
-    node_xs = np.array([float(graph.nodes[node]["x"]) for node in node_ids], dtype=float)
-    node_ys = np.array([float(graph.nodes[node]["y"]) for node in node_ids], dtype=float)
-    return node_ids, node_xs, node_ys
-
-
-def nearest_node(
-    transformer: Transformer,
-    node_ids: np.ndarray,
-    node_xs: np.ndarray,
-    node_ys: np.ndarray,
-    lat: float,
-    lng: float,
-) -> Hashable:
-    x, y = transformer.transform(lng, lat)
-    distances = ((node_xs - x) ** 2) + ((node_ys - y) ** 2)
-    return node_ids[int(np.argmin(distances))]
-
-
-def initialize_state() -> Tuple[
-    nx.MultiDiGraph,
-    Transformer,
-    np.ndarray,
-    np.ndarray,
-    np.ndarray,
-    List[Dict[str, object]],
-    Dict[EdgeKey, int],
-]:
-    graph = load_graph()
-    projected_graph = ox.project_graph(graph)
-    transformer = Transformer.from_crs(graph.graph["crs"], projected_graph.graph["crs"], always_xy=True)
-    node_ids, node_xs, node_ys = build_node_index(projected_graph)
-    scaffolds = load_scaffolds()
-    log(f"Scaffolds loaded: {len(scaffolds)}")
-    scaffold_counts = precompute_scaffold_coverage(projected_graph, transformer, scaffolds)
-    log(f"Edges with scaffold coverage: {len(scaffold_counts)}")
-    if DEV_BAD_WEATHER_MODE:
-        log(
-            "Dev bad weather mode enabled: "
-            f"{DEV_WEATHER_OVERRIDE['condition']} at {DEV_WEATHER_OVERRIDE['precip_mm_hr']} mm/hr"
+def load_router() -> Tuple[dict, ScaffoldRouter]:
+    if not GRAPH_DATA_PATH.exists():
+        raise FileNotFoundError(
+            "graph_data.pkl is missing. Run `python precompute.py` locally and commit the result."
         )
-    log("Ready.")
-    return graph, transformer, node_ids, node_xs, node_ys, scaffolds, scaffold_counts
+
+    tracemalloc.start()
+    with GRAPH_DATA_PATH.open("rb") as handle:
+        graph_data = pickle.load(handle)
+    router = ScaffoldRouter(graph_data)
+    _, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+    log(f"Router ready — {len(graph_data['nodes'])} nodes, {len(graph_data['edges'])} edges")
+    log(f"Peak memory: {peak / 1024 / 1024:.1f} MB")
+    return graph_data, router
 
 
-GRAPH, GRAPH_TRANSFORMER, GRAPH_NODE_IDS, GRAPH_NODE_XS, GRAPH_NODE_YS, SCAFFOLDS, SCAFFOLD_COUNTS = initialize_state()
+def build_route_payload(
+    router: ScaffoldRouter,
+    scaffolds: List[Dict[str, object]],
+    node_path: List[int],
+    distance_m: float,
+) -> Dict[str, object]:
+    coordinates = router.path_to_geojson(node_path)
+    return {
+        "geojson": {"type": "LineString", "coordinates": coordinates},
+        "distance_m": float(distance_m),
+        "duration_s": float(distance_m) / WALKING_SPEED_MPS,
+        "scaffolds_covered": router.count_scaffolds_covered(
+            coordinates,
+            scaffolds,
+            radius_deg=ROUTE_HIT_THRESHOLD_DEGREES,
+        ),
+        "waypoints": router.edge_waypoints(node_path),
+    }
+
+
+GRAPH_DATA, ROUTER = load_router()
+SCAFFOLDS = load_scaffolds()
+log(f"Scaffolds loaded: {len(SCAFFOLDS)}")
+if DEV_BAD_WEATHER_MODE:
+    log(
+        "Dev bad weather mode enabled: "
+        f"{DEV_WEATHER_OVERRIDE['condition']} at {DEV_WEATHER_OVERRIDE['precip_mm_hr']} mm/hr"
+    )
+log("Ready.")
 
 
 @app.route("/")
@@ -547,48 +307,12 @@ def api_route():
         if detour_mode not in DETOUR_LAMBDAS:
             raise ValueError("invalid detour mode")
 
-        orig_node = nearest_node(
-            GRAPH_TRANSFORMER,
-            GRAPH_NODE_IDS,
-            GRAPH_NODE_XS,
-            GRAPH_NODE_YS,
-            start[0],
-            start[1],
-        )
-        dest_node = nearest_node(
-            GRAPH_TRANSFORMER,
-            GRAPH_NODE_IDS,
-            GRAPH_NODE_XS,
-            GRAPH_NODE_YS,
-            end[0],
-            end[1],
-        )
-
-        shortest_nodes = nx.shortest_path(GRAPH, orig_node, dest_node, weight="length")
-        shortest = build_route_payload(
-            GRAPH,
-            SCAFFOLD_COUNTS,
-            SCAFFOLDS,
-            shortest_nodes,
-            0.0,
-            weighted=False,
-        )
+        shortest_nodes, shortest_distance = ROUTER.route(start[0], start[1], end[0], end[1], 0.0)
+        shortest = build_route_payload(ROUTER, SCAFFOLDS, shortest_nodes, shortest_distance)
 
         lambda_val = DETOUR_LAMBDAS[detour_mode]
-        scaffold_nodes = nx.shortest_path(
-            GRAPH,
-            orig_node,
-            dest_node,
-            weight=make_weight_fn(SCAFFOLD_COUNTS, lambda_val),
-        )
-        scaffold_route = build_route_payload(
-            GRAPH,
-            SCAFFOLD_COUNTS,
-            SCAFFOLDS,
-            scaffold_nodes,
-            lambda_val,
-            weighted=True,
-        )
+        scaffold_nodes, scaffold_distance = ROUTER.route(start[0], start[1], end[0], end[1], lambda_val)
+        scaffold_route = build_route_payload(ROUTER, SCAFFOLDS, scaffold_nodes, scaffold_distance)
 
         return jsonify(
             {
@@ -599,8 +323,10 @@ def api_route():
         )
     except (KeyError, TypeError, ValueError):
         return jsonify({"error": "Invalid route payload."}), 400
-    except (nx.NetworkXNoPath, nx.NodeNotFound):
+    except LookupError:
         return jsonify({"error": "No walking route found between A and B."}), 422
+    except FileNotFoundError as exc:
+        return jsonify({"error": str(exc)}), 500
 
 
 if __name__ == "__main__":
