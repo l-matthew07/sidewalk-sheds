@@ -1,621 +1,735 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>SidewalkShed</title>
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-      crossorigin=""
-    >
-    <style>
-      :root {
-        --bg: #f4efe5;
-        --panel: rgba(255, 251, 244, 0.94);
-        --ink: #172127;
-        --muted: #5e696d;
-        --blue: #2563eb;
-        --green: #16a34a;
-        --accent: #0f766e;
-        --shed: #c26d13;
-        --a: #047857;
-        --b: #7c3aed;
-      }
 
-      * {
-        box-sizing: border-box;
-      }
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SidewalkShed</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <style>
+    :root {
+      --bg: #f4efe5;
+      --panel: rgba(255, 251, 244, 0.94);
+      --ink: #172127;
+      --muted: #5e696d;
+      --blue: #2563eb;
+      --green: #16a34a;
+      --accent: #0f766e;
+      --shed: #c26d13;
+      --a: #047857;
+      --b: #7c3aed;
+    }
 
-      html,
-      body {
-        height: 100%;
-        margin: 0;
-        padding: 0;
-        color: var(--ink);
-        font-family: Georgia, "Times New Roman", serif;
-        background:
-          radial-gradient(circle at top left, rgba(15, 118, 110, 0.16), transparent 28%),
-          radial-gradient(circle at right, rgba(37, 99, 235, 0.12), transparent 24%),
-          linear-gradient(180deg, #f7f3ec 0%, #ece3d5 100%);
-      }
+    * {
+      box-sizing: border-box;
+    }
 
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      color: var(--ink);
+      font-family: Georgia, "Times New Roman", serif;
+      background:
+        radial-gradient(circle at top left, rgba(15, 118, 110, 0.16), transparent 28%),
+        radial-gradient(circle at right, rgba(37, 99, 235, 0.12), transparent 24%),
+        linear-gradient(180deg, #f7f3ec 0%, #ece3d5 100%);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      height: 100vh;
+    }
+
+    .sidebar {
+      height: 100vh;
+      padding: 24px 20px 28px;
+      background: var(--panel);
+      border-right: 1px solid rgba(23, 33, 39, 0.08);
+      backdrop-filter: blur(14px);
+      overflow-y: auto;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 2rem;
+      line-height: 1;
+    }
+
+    .lede {
+      margin: 0 0 18px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .panel {
+      margin-bottom: 16px;
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(23, 33, 39, 0.08);
+    }
+
+    .label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 0.8rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .value {
+      font-size: 1.35rem;
+    }
+
+    .point-value {
+      font-size: 1rem;
+      line-height: 1.45;
+      word-break: break-word;
+    }
+
+    .route-card {
+      margin-bottom: 16px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      border: 1px solid rgba(23, 33, 39, 0.08);
+      background: rgba(255, 255, 255, 0.72);
+    }
+
+    .route-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      font-size: 1.05rem;
+    }
+
+    .swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+    }
+
+    .route-metric {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 6px 0;
+      border-top: 1px solid rgba(23, 33, 39, 0.06);
+    }
+
+    .route-metric:first-of-type {
+      border-top: 0;
+      padding-top: 0;
+    }
+
+    .detour-options {
+      display: grid;
+      gap: 12px;
+    }
+
+    .address-form {
+      display: grid;
+      gap: 12px;
+    }
+
+    .address-field {
+      display: grid;
+      gap: 6px;
+    }
+
+    .text-input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid rgba(23, 33, 39, 0.14);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.92);
+      color: var(--ink);
+      font: inherit;
+    }
+
+    .text-input::placeholder {
+      color: rgba(94, 105, 109, 0.85);
+    }
+
+    .submit-button {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid rgba(15, 118, 110, 0.25);
+      border-radius: 12px;
+      background: var(--accent);
+      color: #ffffff;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .submit-button:disabled {
+      cursor: wait;
+      opacity: 0.7;
+    }
+
+    .detour-button {
+      width: 100%;
+      padding: 14px 16px;
+      border: 1px solid rgba(23, 33, 39, 0.12);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.84);
+      color: var(--ink);
+      text-align: left;
+      cursor: pointer;
+      transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+    }
+
+    .detour-button:hover {
+      transform: translateY(-1px);
+    }
+
+    .detour-button.active {
+      border-color: var(--accent);
+      background: rgba(15, 118, 110, 0.12);
+    }
+
+    .detour-button strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 1rem;
+    }
+
+    .detour-button span {
+      display: block;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
+    .legend {
+      display: grid;
+      gap: 10px;
+    }
+
+    .legend-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .map-wrap {
+      height: 100vh;
+      min-height: 100vh;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    #map {
+      height: 100vh;
+      min-height: 100vh;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    .leaflet-container {
+      font-family: Arial, sans-serif;
+    }
+
+    @media (max-width: 960px) {
       .layout {
-        display: grid;
-        grid-template-columns: 360px 1fr;
-        height: 100vh;
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 100vh;
+        height: auto;
       }
 
       .sidebar {
-        height: 100vh;
-        padding: 24px 20px 28px;
-        background: var(--panel);
-        border-right: 1px solid rgba(23, 33, 39, 0.08);
-        backdrop-filter: blur(14px);
-        overflow-y: auto;
+        height: auto;
+        border-right: 0;
+        border-bottom: 1px solid rgba(23, 33, 39, 0.08);
       }
 
-      h1 {
-        margin: 0 0 8px;
-        font-size: 2rem;
-        line-height: 1;
-      }
-
-      .lede {
-        margin: 0 0 18px;
-        color: var(--muted);
-        line-height: 1.45;
-      }
-
-      .panel {
-        margin-bottom: 16px;
-        padding: 14px 16px;
-        border-radius: 14px;
-        background: rgba(255, 255, 255, 0.72);
-        border: 1px solid rgba(23, 33, 39, 0.08);
-      }
-
-      .label {
-        display: block;
-        margin-bottom: 6px;
-        font-size: 0.8rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: var(--muted);
-      }
-
-      .value {
-        font-size: 1.35rem;
-      }
-
-      .route-card {
-        margin-bottom: 16px;
-        padding: 14px 16px;
-        border-radius: 16px;
-        border: 1px solid rgba(23, 33, 39, 0.08);
-        background: rgba(255, 255, 255, 0.72);
-      }
-
-      .route-title {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 12px;
-        font-size: 1.05rem;
-      }
-
-      .swatch {
-        width: 14px;
-        height: 14px;
-        border-radius: 999px;
-      }
-
-      .route-metric {
-        display: flex;
-        justify-content: space-between;
-        gap: 12px;
-        padding: 6px 0;
-        border-top: 1px solid rgba(23, 33, 39, 0.06);
-      }
-
-      .route-metric:first-of-type {
-        border-top: 0;
-        padding-top: 0;
-      }
-
-      .detour-options {
-        display: grid;
-        gap: 12px;
-      }
-
-      .detour-button {
-        width: 100%;
-        padding: 14px 16px;
-        border: 1px solid rgba(23, 33, 39, 0.12);
-        border-radius: 14px;
-        background: rgba(255, 255, 255, 0.84);
-        color: var(--ink);
-        text-align: left;
-        cursor: pointer;
-        transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
-      }
-
-      .detour-button:hover {
-        transform: translateY(-1px);
-      }
-
-      .detour-button.active {
-        border-color: var(--accent);
-        background: rgba(15, 118, 110, 0.12);
-      }
-
-      .detour-button strong {
-        display: block;
-        margin-bottom: 4px;
-        font-size: 1rem;
-      }
-
-      .detour-button span {
-        display: block;
-        color: var(--muted);
-        line-height: 1.35;
-      }
-
-      .legend {
-        display: grid;
-        gap: 10px;
-      }
-
-      .legend-row {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-
-      .map-wrap {
-        height: 100vh;
-        min-height: 100vh;
-        margin: 0;
-        padding: 0;
-        overflow: hidden;
-      }
-
+      .map-wrap,
       #map {
         height: 100vh;
         min-height: 100vh;
-        width: 100%;
-        margin: 0;
-        padding: 0;
       }
+    }
+  </style>
+</head>
 
-      .leaflet-container {
-        font-family: Arial, sans-serif;
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h1>SidewalkShed</h1>
+      <p class="lede">
+        Enter two addresses in Manhattan and compare the shortest walk with a scaffold-favoring alternative. The app
+        geocodes each address, snaps both endpoints onto the street graph, and biases the route toward covered blocks
+        when weather calls for it.
+      </p>
+
+      <div class="panel">
+        <span class="label">Loaded Scaffolds</span>
+        <div class="value" id="total-count">Loading...</div>
+      </div>
+
+      <div class="panel">
+        <span class="label">Current Weather</span>
+        <div class="value" id="weather-condition">Loading...</div>
+        <div style="margin-top: 8px; color: var(--muted);" id="weather-precip">Checking precipitation...</div>
+      </div>
+
+      <div class="panel">
+        <span class="label">Route Addresses</span>
+        <form class="address-form" id="address-form">
+          <label class="address-field">
+            <span class="label" style="margin-bottom: 0;">Point A</span>
+            <input class="text-input" id="point-a-input" name="point-a" type="text"
+              placeholder="350 5th Ave, New York, NY" autocomplete="street-address">
+          </label>
+          <label class="address-field">
+            <span class="label" style="margin-bottom: 0;">Point B</span>
+            <input class="text-input" id="point-b-input" name="point-b" type="text"
+              placeholder="11 Wall St, New York, NY" autocomplete="street-address">
+          </label>
+          <button class="submit-button" id="address-submit" type="submit">Route Between Addresses</button>
+        </form>
+      </div>
+
+      <div class="panel">
+        <span class="label">Resolved Point A</span>
+        <div class="point-value" id="point-a">Not set</div>
+        <span class="label" style="margin-top: 12px;">Resolved Point B</span>
+        <div class="point-value" id="point-b">Not set</div>
+      </div>
+
+      <div class="panel">
+        <span class="label">Route Preference</span>
+        <div class="detour-options">
+          <button class="detour-button" data-mode="minimal" type="button">
+            <strong>🟢 Stay close</strong>
+            <span>Minimal detour, up to 10% longer.</span>
+          </button>
+          <button class="detour-button" data-mode="moderate" type="button">
+            <strong>🟡 A bit wetter is fine</strong>
+            <span>Moderate detour, up to 30% longer.</span>
+          </button>
+          <button class="detour-button" data-mode="max" type="button">
+            <strong>🔴 Keep me dry</strong>
+            <span>Maximum detour, up to 75% longer.</span>
+          </button>
+        </div>
+        <div id="route-status" style="margin-top: 12px; color: var(--muted); line-height: 1.4;">
+          Enter both route addresses to begin.
+        </div>
+      </div>
+
+      <div class="route-card">
+        <div class="route-title">
+          <span class="swatch" style="background: var(--blue);"></span>
+          <strong>Shortest Route</strong>
+        </div>
+        <div class="route-metric"><span>Distance</span><strong id="shortest-distance">-</strong></div>
+        <div class="route-metric"><span>Scaffolds Along Route</span><strong id="shortest-count">-</strong></div>
+      </div>
+
+      <div class="route-card">
+        <div class="route-title">
+          <span class="swatch" style="background: var(--green);"></span>
+          <strong>Scaffold Route</strong>
+        </div>
+        <div class="route-metric"><span>Distance</span><strong id="scaffold-distance">-</strong></div>
+        <div class="route-metric"><span>Scaffolds Along Route</span><strong id="scaffold-count">-</strong></div>
+        <div class="route-metric"><span>Longer Than Shortest</span><strong id="pct-longer">-</strong></div>
+      </div>
+
+      <div class="panel legend">
+        <div class="legend-row"><span class="swatch" style="background: var(--shed);"></span><span>Scaffold
+            marker</span></div>
+        <div class="legend-row"><span class="swatch" style="background: var(--blue);"></span><span>Shortest walking
+            route</span></div>
+        <div class="legend-row"><span class="swatch" style="background: var(--green);"></span><span>Weather-aware
+            scaffold route</span></div>
+        <div class="legend-row"><span class="swatch" style="background: var(--a);"></span><span>Point A</span></div>
+        <div class="legend-row"><span class="swatch" style="background: var(--b);"></span><span>Point B</span></div>
+      </div>
+    </aside>
+
+    <main class="map-wrap">
+      <div id="map"></div>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script>
+    const map = L.map("map", {
+      center: [40.7128, -74.0060],
+      zoom: 11,
+      preferCanvas: true
+    });
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "&copy; OpenStreetMap contributors"
+    }).addTo(map);
+
+    const scaffoldLayer = L.layerGroup().addTo(map);
+    const routeLayer = L.layerGroup().addTo(map);
+
+    const totalCountEl = document.getElementById("total-count");
+    const weatherConditionEl = document.getElementById("weather-condition");
+    const weatherPrecipEl = document.getElementById("weather-precip");
+    const pointAEl = document.getElementById("point-a");
+    const pointBEl = document.getElementById("point-b");
+    const pointAInputEl = document.getElementById("point-a-input");
+    const pointBInputEl = document.getElementById("point-b-input");
+    const addressFormEl = document.getElementById("address-form");
+    const addressSubmitEl = document.getElementById("address-submit");
+    const detourButtons = Array.from(document.querySelectorAll(".detour-button"));
+    const routeStatusEl = document.getElementById("route-status");
+    const shortestDistanceEl = document.getElementById("shortest-distance");
+    const shortestCountEl = document.getElementById("shortest-count");
+    const scaffoldDistanceEl = document.getElementById("scaffold-distance");
+    const scaffoldCountEl = document.getElementById("scaffold-count");
+    const pctLongerEl = document.getElementById("pct-longer");
+
+    const defaultMarkerStyle = {
+      radius: 3,
+      fillColor: "#c26d13",
+      color: "#8a4b07",
+      weight: 1,
+      opacity: 0.65,
+      fillOpacity: 0.6
+    };
+
+    let pointA = null;
+    let pointB = null;
+    let pointALabel = null;
+    let pointBLabel = null;
+    let pointAMarker = null;
+    let pointBMarker = null;
+    let shortestRouteLayer = null;
+    let scaffoldRouteLayer = null;
+    let routeRequestSerial = 0;
+    let selectedDetourMode = "minimal";
+    let weatherSuggestedMode = "minimal";
+    let weatherSuppressesOptimizer = false;
+    let detourOverride = false;
+
+    function formatPoint(label, latlng) {
+      if (label) {
+        return label;
       }
-
-      @media (max-width: 960px) {
-        .layout {
-          grid-template-columns: 1fr;
-          grid-template-rows: auto 100vh;
-          height: auto;
-        }
-
-        .sidebar {
-          height: auto;
-          border-right: 0;
-          border-bottom: 1px solid rgba(23, 33, 39, 0.08);
-        }
-
-        .map-wrap,
-        #map {
-          height: 100vh;
-          min-height: 100vh;
-        }
+      if (!latlng) {
+        return "Not set";
       }
-    </style>
-  </head>
-  <body>
-    <div class="layout">
-      <aside class="sidebar">
-        <h1>SidewalkShed</h1>
-        <p class="lede">
-          Click the map to set A and B. The app requests real walking routes from OSRM, adjusts scaffold waypoints to nearby walkable streets, and can bias the route toward cover when the weather calls for it.
-        </p>
+      return `${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}`;
+    }
 
-        <div class="panel">
-          <span class="label">Loaded Scaffolds</span>
-          <div class="value" id="total-count">Loading...</div>
-        </div>
+    function formatDistance(distanceMeters) {
+      if (distanceMeters === null || distanceMeters === undefined) {
+        return "-";
+      }
+      return `${(distanceMeters / 1000).toFixed(2)} km`;
+    }
 
-        <div class="panel">
-          <span class="label">Current Weather</span>
-          <div class="value" id="weather-condition">Loading...</div>
-          <div style="margin-top: 8px; color: var(--muted);" id="weather-precip">Checking precipitation...</div>
-        </div>
+    function formatPercent(value) {
+      if (value === null || value === undefined) {
+        return "-";
+      }
+      return `${value.toFixed(1)}%`;
+    }
 
-        <div class="panel">
-          <span class="label">Point A</span>
-          <div class="value" id="point-a">Not set</div>
-          <span class="label" style="margin-top: 12px;">Point B</span>
-          <div class="value" id="point-b">Not set</div>
-        </div>
+    function updatePointLabels() {
+      pointAEl.textContent = formatPoint(pointALabel, pointA);
+      pointBEl.textContent = formatPoint(pointBLabel, pointB);
+    }
 
-        <div class="panel">
-          <span class="label">Route Preference</span>
-          <div class="detour-options">
-            <button class="detour-button" data-mode="minimal" type="button">
-              <strong>🟢 Stay close</strong>
-              <span>Minimal detour, about 10% longer.</span>
-            </button>
-            <button class="detour-button" data-mode="moderate" type="button">
-              <strong>🟡 A bit wetter is fine</strong>
-              <span>Moderate detour, about 30% longer.</span>
-            </button>
-            <button class="detour-button" data-mode="max" type="button">
-              <strong>🔴 Keep me dry</strong>
-              <span>Maximum detour, about 75% longer.</span>
-            </button>
-          </div>
-          <div id="route-status" style="margin-top: 12px; color: var(--muted); line-height: 1.4;">
-            Set both route endpoints to begin.
-          </div>
-        </div>
+    function addEndpointMarker(latlng, label, color) {
+      return L.circleMarker(latlng, {
+        radius: 8,
+        fillColor: color,
+        color: "#ffffff",
+        weight: 2,
+        opacity: 1,
+        fillOpacity: 1
+      }).bindTooltip(label, { permanent: true, direction: "top", offset: [0, -10] }).addTo(routeLayer);
+    }
 
-        <div class="route-card">
-          <div class="route-title">
-            <span class="swatch" style="background: var(--blue);"></span>
-            <strong>Shortest Route</strong>
-          </div>
-          <div class="route-metric"><span>Distance</span><strong id="shortest-distance">-</strong></div>
-          <div class="route-metric"><span>Scaffolds Along Route</span><strong id="shortest-count">-</strong></div>
-        </div>
+    function redrawEndpoints() {
+      routeLayer.clearLayers();
+      pointAMarker = null;
+      pointBMarker = null;
 
-        <div class="route-card">
-          <div class="route-title">
-            <span class="swatch" style="background: var(--green);"></span>
-            <strong>Scaffold Route</strong>
-          </div>
-          <div class="route-metric"><span>Distance</span><strong id="scaffold-distance">-</strong></div>
-          <div class="route-metric"><span>Scaffolds Along Route</span><strong id="scaffold-count">-</strong></div>
-          <div class="route-metric"><span>Longer Than Shortest</span><strong id="pct-longer">-</strong></div>
-        </div>
+      if (pointA) {
+        pointAMarker = addEndpointMarker(pointA, "A", "#047857");
+      }
+      if (pointB) {
+        pointBMarker = addEndpointMarker(pointB, "B", "#7c3aed");
+      }
+    }
 
-        <div class="panel legend">
-          <div class="legend-row"><span class="swatch" style="background: var(--shed);"></span><span>Scaffold marker</span></div>
-          <div class="legend-row"><span class="swatch" style="background: var(--blue);"></span><span>Shortest walking route</span></div>
-          <div class="legend-row"><span class="swatch" style="background: var(--green);"></span><span>Weather-aware scaffold route</span></div>
-          <div class="legend-row"><span class="swatch" style="background: var(--a);"></span><span>Point A</span></div>
-          <div class="legend-row"><span class="swatch" style="background: var(--b);"></span><span>Point B</span></div>
-        </div>
-      </aside>
+    function clearRoutes() {
+      if (shortestRouteLayer) {
+        map.removeLayer(shortestRouteLayer);
+        shortestRouteLayer = null;
+      }
+      if (scaffoldRouteLayer) {
+        map.removeLayer(scaffoldRouteLayer);
+        scaffoldRouteLayer = null;
+      }
+    }
 
-      <main class="map-wrap">
-        <div id="map"></div>
-      </main>
-    </div>
+    function resetRouteStats() {
+      shortestDistanceEl.textContent = "-";
+      shortestCountEl.textContent = "-";
+      scaffoldDistanceEl.textContent = "-";
+      scaffoldCountEl.textContent = "-";
+      pctLongerEl.textContent = "-";
+    }
 
-    <script
-      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-      crossorigin=""
-    ></script>
-    <script>
-      const map = L.map("map", {
-        center: [40.7128, -74.0060],
-        zoom: 11,
-        preferCanvas: true
+    function setButtonState(activeMode) {
+      detourButtons.forEach((button) => {
+        button.classList.toggle("active", button.dataset.mode === activeMode);
       });
+    }
 
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-        attribution: "&copy; OpenStreetMap contributors"
-      }).addTo(map);
+    function applyWeatherState(weather) {
+      weatherConditionEl.textContent = weather.condition;
+      weatherPrecipEl.textContent = `Precipitation: ${Number(weather.precip_mm_hr).toFixed(1)} mm/hr`;
+      weatherSuggestedMode = weather.suggested_mode;
 
-      const scaffoldLayer = L.layerGroup().addTo(map);
-      const routeLayer = L.layerGroup().addTo(map);
-
-      const totalCountEl = document.getElementById("total-count");
-      const weatherConditionEl = document.getElementById("weather-condition");
-      const weatherPrecipEl = document.getElementById("weather-precip");
-      const pointAEl = document.getElementById("point-a");
-      const pointBEl = document.getElementById("point-b");
-      const detourButtons = Array.from(document.querySelectorAll(".detour-button"));
-      const routeStatusEl = document.getElementById("route-status");
-      const shortestDistanceEl = document.getElementById("shortest-distance");
-      const shortestCountEl = document.getElementById("shortest-count");
-      const scaffoldDistanceEl = document.getElementById("scaffold-distance");
-      const scaffoldCountEl = document.getElementById("scaffold-count");
-      const pctLongerEl = document.getElementById("pct-longer");
-
-      const defaultMarkerStyle = {
-        radius: 3,
-        fillColor: "#c26d13",
-        color: "#8a4b07",
-        weight: 1,
-        opacity: 0.65,
-        fillOpacity: 0.6
-      };
-
-      let pointA = null;
-      let pointB = null;
-      let pointAMarker = null;
-      let pointBMarker = null;
-      let shortestRouteLayer = null;
-      let scaffoldRouteLayer = null;
-      let routeRequestSerial = 0;
-      let selectedDetourMode = "minimal";
-      let weatherSuggestedMode = "minimal";
-      let weatherSuppressesOptimizer = false;
-      let detourOverride = false;
-
-      function formatPoint(latlng) {
-        if (!latlng) {
-          return "Not set";
-        }
-        return `${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}`;
-      }
-
-      function formatDistance(distanceMeters) {
-        if (distanceMeters === null || distanceMeters === undefined) {
-          return "-";
-        }
-        return `${(distanceMeters / 1000).toFixed(2)} km`;
-      }
-
-      function formatPercent(value) {
-        if (value === null || value === undefined) {
-          return "-";
-        }
-        return `${value.toFixed(1)}%`;
-      }
-
-      function updatePointLabels() {
-        pointAEl.textContent = formatPoint(pointA);
-        pointBEl.textContent = formatPoint(pointB);
-      }
-
-      function addEndpointMarker(latlng, label, color) {
-        return L.circleMarker(latlng, {
-          radius: 8,
-          fillColor: color,
-          color: "#ffffff",
-          weight: 2,
-          opacity: 1,
-          fillOpacity: 1
-        }).bindTooltip(label, { permanent: true, direction: "top", offset: [0, -10] }).addTo(routeLayer);
-      }
-
-      function redrawEndpoints() {
-        routeLayer.clearLayers();
-        pointAMarker = null;
-        pointBMarker = null;
-
-        if (pointA) {
-          pointAMarker = addEndpointMarker(pointA, "A", "#047857");
-        }
-        if (pointB) {
-          pointBMarker = addEndpointMarker(pointB, "B", "#7c3aed");
-        }
-      }
-
-      function clearRoutes() {
-        if (shortestRouteLayer) {
-          map.removeLayer(shortestRouteLayer);
-          shortestRouteLayer = null;
-        }
-        if (scaffoldRouteLayer) {
-          map.removeLayer(scaffoldRouteLayer);
-          scaffoldRouteLayer = null;
-        }
-      }
-
-      function resetRouteStats() {
-        shortestDistanceEl.textContent = "-";
-        shortestCountEl.textContent = "-";
-        scaffoldDistanceEl.textContent = "-";
-        scaffoldCountEl.textContent = "-";
-        pctLongerEl.textContent = "-";
-      }
-
-      function setButtonState(activeMode) {
-        detourButtons.forEach((button) => {
-          button.classList.toggle("active", button.dataset.mode === activeMode);
-        });
-      }
-
-      function applyWeatherState(weather) {
-        weatherConditionEl.textContent = weather.condition;
-        weatherPrecipEl.textContent = `Precipitation: ${Number(weather.precip_mm_hr).toFixed(1)} mm/hr`;
-        weatherSuggestedMode = weather.suggested_mode;
-
-        if (weatherSuggestedMode === "none") {
-          weatherSuppressesOptimizer = true;
-          detourOverride = false;
-          setButtonState(null);
+      if (weatherSuggestedMode === "none") {
+        weatherSuppressesOptimizer = true;
+        detourOverride = false;
+        setButtonState(null);
+        if (!pointA || !pointB) {
+          routeStatusEl.textContent = "Enter both route addresses to begin.";
+        } else {
           routeStatusEl.textContent = "No rain detected — enjoy the sun";
-          return;
         }
+        return;
+      }
 
-        weatherSuppressesOptimizer = false;
-        selectedDetourMode = weatherSuggestedMode;
-        setButtonState(selectedDetourMode);
+      weatherSuppressesOptimizer = false;
+      selectedDetourMode = weatherSuggestedMode;
+      setButtonState(selectedDetourMode);
+      if (!pointA || !pointB) {
+        routeStatusEl.textContent = "Enter both route addresses to begin.";
+      } else {
         routeStatusEl.textContent = `Weather suggests "${selectedDetourMode}".`;
       }
+    }
 
-      function setRoutePoint(latlng) {
-        if (!pointA || (pointA && pointB)) {
-          pointA = latlng;
-          pointB = null;
-        } else {
-          pointB = latlng;
-        }
+    async function geocodeAddress(address) {
+      const response = await fetch("/api/geocode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address })
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || "Address lookup failed.");
+      }
+      return payload;
+    }
+
+    async function submitAddresses() {
+      const addressA = pointAInputEl.value.trim();
+      const addressB = pointBInputEl.value.trim();
+      if (!addressA || !addressB) {
+        routeStatusEl.textContent = "Enter both route addresses to begin.";
+        return;
+      }
+
+      addressSubmitEl.disabled = true;
+      routeStatusEl.textContent = "Looking up both addresses...";
+
+      try {
+        const [resolvedA, resolvedB] = await Promise.all([
+          geocodeAddress(addressA),
+          geocodeAddress(addressB)
+        ]);
+
+        pointA = { lat: resolvedA.lat, lng: resolvedA.lng };
+        pointB = { lat: resolvedB.lat, lng: resolvedB.lng };
+        pointALabel = resolvedA.address;
+        pointBLabel = resolvedB.address;
 
         updatePointLabels();
         redrawEndpoints();
         clearRoutes();
         resetRouteStats();
-
-        if (pointA && pointB) {
-          requestRoutes();
-        } else {
-          routeStatusEl.textContent = "Set both route endpoints to begin.";
-        }
+        await requestRoutes();
+      } finally {
+        addressSubmitEl.disabled = false;
       }
+    }
 
-      function scaffoldPopupContent(scaffold) {
-        return `
+    function scaffoldPopupContent(scaffold) {
+      return `
           <strong>${scaffold.address || "Unknown address"}</strong><br>
           Permit start: ${scaffold.permit_start || "Unknown"}<br>
           Permit end: ${scaffold.permit_end || "Unknown"}
         `;
-      }
+    }
 
-      function drawRoute(feature, color, dashArray) {
-        return L.geoJSON(feature, {
-          style: {
-            color,
-            weight: 5,
-            opacity: 0.8,
-            dashArray
-          }
-        }).addTo(map);
-      }
-
-      function fitRouteBounds() {
-        const layers = [shortestRouteLayer, scaffoldRouteLayer].filter(Boolean);
-        if (!layers.length) {
-          return;
+    function drawRoute(feature, color, dashArray) {
+      return L.geoJSON(feature, {
+        style: {
+          color,
+          weight: 5,
+          opacity: 0.8,
+          dashArray
         }
-        const bounds = L.featureGroup(layers).getBounds();
-        if (bounds.isValid()) {
-          map.fitBounds(bounds.pad(0.1));
-        }
+      }).addTo(map);
+    }
+
+    function fitRouteBounds() {
+      const layers = [shortestRouteLayer, scaffoldRouteLayer].filter(Boolean);
+      if (!layers.length) {
+        return;
+      }
+      const bounds = L.featureGroup(layers).getBounds();
+      if (bounds.isValid()) {
+        map.fitBounds(bounds.pad(0.1));
+      }
+    }
+
+    function updateStats(payload, showOptimizer) {
+      shortestDistanceEl.textContent = formatDistance(payload.shortest.distance_m);
+      shortestCountEl.textContent = payload.shortest.scaffolds_covered ?? "-";
+
+      if (showOptimizer && payload.scaffold_route.geojson) {
+        scaffoldDistanceEl.textContent = formatDistance(payload.scaffold_route.distance_m);
+        scaffoldCountEl.textContent = payload.scaffold_route.scaffolds_covered;
+        const pctLonger = ((payload.scaffold_route.distance_m - payload.shortest.distance_m) / payload.shortest.distance_m) * 100;
+        pctLongerEl.textContent = formatPercent(Math.max(0, pctLonger));
+      } else {
+        scaffoldDistanceEl.textContent = "-";
+        scaffoldCountEl.textContent = showOptimizer ? "No viable detour" : "Override to compare";
+        pctLongerEl.textContent = "-";
+      }
+    }
+
+    async function requestRoutes() {
+      if (!pointA || !pointB) {
+        return;
       }
 
-      function updateStats(payload, showOptimizer) {
-        shortestDistanceEl.textContent = formatDistance(payload.shortest.distance_m);
-        shortestCountEl.textContent = payload.shortest.scaffolds_covered ?? "-";
+      const currentRequest = ++routeRequestSerial;
+      routeStatusEl.textContent = "Computing walking routes...";
 
-        if (showOptimizer && payload.scaffold_route.geojson) {
-          scaffoldDistanceEl.textContent = formatDistance(payload.scaffold_route.distance_m);
-          scaffoldCountEl.textContent = payload.scaffold_route.scaffolds_covered;
-          const pctLonger = ((payload.scaffold_route.distance_m - payload.shortest.distance_m) / payload.shortest.distance_m) * 100;
-          pctLongerEl.textContent = formatPercent(Math.max(0, pctLonger));
-        } else {
-          scaffoldDistanceEl.textContent = "-";
-          scaffoldCountEl.textContent = showOptimizer ? "No viable detour" : "Override to compare";
-          pctLongerEl.textContent = "-";
-        }
-      }
-
-      async function requestRoutes() {
-        if (!pointA || !pointB) {
-          return;
-        }
-
-        const currentRequest = ++routeRequestSerial;
-        routeStatusEl.textContent = "Computing walking routes...";
-
-        try {
-          const response = await fetch("/api/route", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              start: { lat: pointA.lat, lng: pointA.lng },
-              end: { lat: pointB.lat, lng: pointB.lng },
-              detour_mode: selectedDetourMode
-            })
-          });
-
-          const payload = await response.json();
-          if (currentRequest !== routeRequestSerial) {
-            return;
-          }
-          if (!response.ok) {
-            throw new Error(payload.error || "Route request failed.");
-          }
-
-          applyWeatherState(payload.weather);
-          const showOptimizer = !weatherSuppressesOptimizer || detourOverride;
-
-          clearRoutes();
-          redrawEndpoints();
-
-          shortestRouteLayer = drawRoute(payload.shortest.geojson, "#2563eb", null);
-          if (showOptimizer && payload.scaffold_route.geojson) {
-            scaffoldRouteLayer = drawRoute(payload.scaffold_route.geojson, "#16a34a", "10 8");
-          }
-
-          updateStats(payload, showOptimizer);
-          fitRouteBounds();
-
-          if (!showOptimizer) {
-            routeStatusEl.textContent = "No rain detected — enjoy the sun";
-          } else if (payload.scaffold_route.geojson) {
-            routeStatusEl.textContent = `${payload.scaffold_route.waypoints.length} snapped scaffold waypoint(s) used.`;
-          } else {
-            routeStatusEl.textContent = "No scaffold detour fit within the current mode.";
-          }
-        } catch (error) {
-          if (currentRequest !== routeRequestSerial) {
-            return;
-          }
-          clearRoutes();
-          redrawEndpoints();
-          resetRouteStats();
-          routeStatusEl.textContent = error.message;
-          console.error("Failed to compute routes", error);
-        }
-      }
-
-      async function loadScaffolds() {
-        const response = await fetch("/api/scaffolds");
-        const rows = await response.json();
-        totalCountEl.textContent = String(rows.length);
-
-        for (const row of rows) {
-          L.circleMarker([row.lat, row.lng], defaultMarkerStyle)
-            .bindPopup(scaffoldPopupContent(row))
-            .addTo(scaffoldLayer);
-        }
-      }
-
-      async function loadWeather() {
-        const response = await fetch("/api/weather");
-        const weather = await response.json();
-        applyWeatherState(weather);
-      }
-
-      detourButtons.forEach((button) => {
-        button.addEventListener("click", () => {
-          detourOverride = true;
-          weatherSuppressesOptimizer = false;
-          selectedDetourMode = button.dataset.mode;
-          setButtonState(selectedDetourMode);
-          if (pointA && pointB) {
-            requestRoutes();
-          }
+      try {
+        const response = await fetch("/api/route", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            start: { lat: pointA.lat, lng: pointA.lng },
+            end: { lat: pointB.lat, lng: pointB.lng },
+            detour_mode: selectedDetourMode
+          })
         });
-      });
 
-      map.on("click", (event) => {
-        setRoutePoint(event.latlng);
-      });
+        const payload = await response.json();
+        if (currentRequest !== routeRequestSerial) {
+          return;
+        }
+        if (!response.ok) {
+          throw new Error(payload.error || "Route request failed.");
+        }
 
-      Promise.all([loadScaffolds(), loadWeather()]).catch((error) => {
-        totalCountEl.textContent = "Error";
-        weatherConditionEl.textContent = "Unavailable";
-        routeStatusEl.textContent = "Failed to initialize app data.";
-        console.error("Initialization failed", error);
-      });
+        applyWeatherState(payload.weather);
+        const showOptimizer = !weatherSuppressesOptimizer || detourOverride;
 
-      window.addEventListener("load", () => {
-        map.invalidateSize();
-      });
+        clearRoutes();
+        redrawEndpoints();
 
-      window.addEventListener("resize", () => {
-        map.invalidateSize();
+        shortestRouteLayer = drawRoute(payload.shortest.geojson, "#2563eb", null);
+        if (showOptimizer && payload.scaffold_route.geojson) {
+          scaffoldRouteLayer = drawRoute(payload.scaffold_route.geojson, "#16a34a", "10 8");
+        }
+
+        updateStats(payload, showOptimizer);
+        fitRouteBounds();
+
+        if (!showOptimizer) {
+          routeStatusEl.textContent = "No rain detected — enjoy the sun";
+        } else if (payload.scaffold_route.geojson) {
+          routeStatusEl.textContent = `${payload.scaffold_route.waypoints.length} snapped scaffold waypoint(s) used.`;
+        } else {
+          routeStatusEl.textContent = "No scaffold detour fit within the current mode.";
+        }
+      } catch (error) {
+        if (currentRequest !== routeRequestSerial) {
+          return;
+        }
+        clearRoutes();
+        redrawEndpoints();
+        resetRouteStats();
+        routeStatusEl.textContent = error.message;
+        console.error("Failed to compute routes", error);
+      }
+    }
+
+    async function loadScaffolds() {
+      const response = await fetch("/api/scaffolds");
+      const rows = await response.json();
+      totalCountEl.textContent = String(rows.length);
+
+      for (const row of rows) {
+        L.circleMarker([row.lat, row.lng], defaultMarkerStyle)
+          .bindPopup(scaffoldPopupContent(row))
+          .addTo(scaffoldLayer);
+      }
+    }
+
+    async function loadWeather() {
+      const response = await fetch("/api/weather");
+      const weather = await response.json();
+      applyWeatherState(weather);
+    }
+
+    detourButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        detourOverride = true;
+        weatherSuppressesOptimizer = false;
+        selectedDetourMode = button.dataset.mode;
+        setButtonState(selectedDetourMode);
+        if (pointA && pointB) {
+          requestRoutes();
+        }
       });
-    </script>
-  </body>
+    });
+
+    addressFormEl.addEventListener("submit", (event) => {
+      event.preventDefault();
+      submitAddresses().catch((error) => {
+        clearRoutes();
+        redrawEndpoints();
+        resetRouteStats();
+        routeStatusEl.textContent = error.message;
+        console.error("Failed to geocode addresses", error);
+      });
+    });
+
+    Promise.all([loadScaffolds(), loadWeather()]).catch((error) => {
+      totalCountEl.textContent = "Error";
+      weatherConditionEl.textContent = "Unavailable";
+      routeStatusEl.textContent = "Failed to initialize app data.";
+      console.error("Initialization failed", error);
+    });
+
+    window.addEventListener("load", () => {
+      map.invalidateSize();
+    });
+
+    window.addEventListener("resize", () => {
+      map.invalidateSize();
+    });
+  </script>
+</body>
+
 </html>

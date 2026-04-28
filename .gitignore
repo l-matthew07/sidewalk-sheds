@@ -2,3 +2,5 @@
 __pycache__/
 .scaffold_snap_cache.json
 scaffolds.json
+manhattan_walk.graphml
+cache/
