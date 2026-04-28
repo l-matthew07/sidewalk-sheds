@@ -1,6 +1,7 @@
+# Runtime dependencies only.
+# Install osmnx and networkx locally if you need to run `python precompute.py`.
 Flask>=3.0.0,<4
 gunicorn>=23.0.0,<24
+numpy
 requests>=2.31.0,<3
-osmnx
-networkx
 shapely
