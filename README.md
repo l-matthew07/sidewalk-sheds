@@ -31,6 +31,14 @@ python3 app.py
 
 Then open `http://127.0.0.1:5000` and enter two addresses to compare routes.
 
+## Deploy On Render
+
+Use this start command:
+
+```bash
+gunicorn app:app --bind 0.0.0.0:$PORT
+```
+
 ## Optional environment variables
 
 - `SOCRATA_APP_TOKEN`: optional app token for NYC Open Data.
