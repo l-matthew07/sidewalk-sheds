@@ -61,7 +61,7 @@ class ScaffoldRouter:
         start_lng: float,
         end_lat: float,
         end_lng: float,
-        lambda_val: float,
+        detour_bias: float,
     ) -> Tuple[List[NodeId], float]:
         start_node = self.nearest_node(start_lat, start_lng)
         end_node = self.nearest_node(end_lat, end_lng)
@@ -79,7 +79,13 @@ class ScaffoldRouter:
                 break
 
             for neighbor, length, scaffold_count in self.adjacency.get(node, []):
-                edge_weight = max(length * 0.1, length - (scaffold_count * lambda_val))
+                # Treat scaffold-covered edges as meaningfully "cheaper" so preference modes
+                # produce visibly different paths even with a relatively sparse active dataset.
+                if scaffold_count > 0:
+                    discount = detour_bias * min(scaffold_count, 3)
+                    edge_weight = max(length * 0.08, length * (1.0 - discount))
+                else:
+                    edge_weight = length
                 next_weight = current_weight + edge_weight
                 if next_weight >= best_weight.get(neighbor, float("inf")):
                     continue

@@ -7,18 +7,14 @@
   <title>SidewalkShed</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap"
+    rel="stylesheet">
   <style>
     :root {
-      --bg: #f4efe5;
-      --panel: rgba(255, 251, 244, 0.94);
-      --ink: #172127;
-      --muted: #5e696d;
-      --blue: #2563eb;
-      --green: #16a34a;
-      --accent: #0f766e;
-      --shed: #c26d13;
-      --a: #047857;
-      --b: #7c3aed;
+      --blue: #3b82f6;
+      --green: #22c55e;
     }
 
     * {
@@ -30,206 +26,238 @@
       height: 100%;
       margin: 0;
       padding: 0;
-      color: var(--ink);
-      font-family: Georgia, "Times New Roman", serif;
-      background:
-        radial-gradient(circle at top left, rgba(15, 118, 110, 0.16), transparent 28%),
-        radial-gradient(circle at right, rgba(37, 99, 235, 0.12), transparent 24%),
-        linear-gradient(180deg, #f7f3ec 0%, #ece3d5 100%);
+      color: #111;
+      font-family: "DM Sans", sans-serif;
+      background: #ffffff;
     }
 
     .layout {
       display: grid;
-      grid-template-columns: 360px 1fr;
+      grid-template-columns: 240px 1fr;
       height: 100vh;
     }
 
     .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      width: 240px;
       height: 100vh;
-      padding: 24px 20px 28px;
-      background: var(--panel);
-      border-right: 1px solid rgba(23, 33, 39, 0.08);
-      backdrop-filter: blur(14px);
+      padding: 28px 20px;
+      font-family: "DM Sans", sans-serif;
+      font-weight: 300;
+      background: #fff;
+      border-right: 0.5px solid rgba(0, 0, 0, 0.12);
       overflow-y: auto;
     }
 
-    h1 {
-      margin: 0 0 8px;
-      font-size: 2rem;
-      line-height: 1;
+    .logo {
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #111;
     }
 
-    .lede {
-      margin: 0 0 18px;
-      color: var(--muted);
-      line-height: 1.45;
+    .divider {
+      height: 0.5px;
+      background: rgba(0, 0, 0, 0.1);
+      flex-shrink: 0;
     }
 
-    .panel {
-      margin-bottom: 16px;
-      padding: 14px 16px;
-      border-radius: 14px;
-      background: rgba(255, 255, 255, 0.72);
-      border: 1px solid rgba(23, 33, 39, 0.08);
+    .section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
     }
 
     .label {
-      display: block;
-      margin-bottom: 6px;
-      font-size: 0.8rem;
-      letter-spacing: 0.08em;
+      font-size: 10px;
+      letter-spacing: 0.1em;
       text-transform: uppercase;
-      color: var(--muted);
+      color: #999;
+      font-weight: 500;
     }
 
-    .value {
-      font-size: 1.35rem;
+    .stat {
+      font-family: "DM Mono", monospace;
+      font-size: 20px;
+      font-weight: 400;
+      color: #111;
     }
 
-    .point-value {
-      font-size: 1rem;
-      line-height: 1.45;
-      word-break: break-word;
+    .status-text {
+      font-size: 12px;
+      color: #666;
     }
 
-    .route-card {
-      margin-bottom: 16px;
-      padding: 14px 16px;
-      border-radius: 16px;
-      border: 1px solid rgba(23, 33, 39, 0.08);
-      background: rgba(255, 255, 255, 0.72);
-    }
-
-    .route-title {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 12px;
-      font-size: 1.05rem;
-    }
-
-    .swatch {
-      width: 14px;
-      height: 14px;
-      border-radius: 999px;
-    }
-
-    .route-metric {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 6px 0;
-      border-top: 1px solid rgba(23, 33, 39, 0.06);
-    }
-
-    .route-metric:first-of-type {
-      border-top: 0;
-      padding-top: 0;
-    }
-
-    .detour-options {
-      display: grid;
-      gap: 12px;
-    }
-
-    .address-form {
-      display: grid;
-      gap: 12px;
-    }
-
-    .address-field {
-      display: grid;
-      gap: 6px;
-    }
-
-    .text-input {
+    .sidebar input[type="text"] {
       width: 100%;
-      padding: 12px 14px;
-      border: 1px solid rgba(23, 33, 39, 0.14);
-      border-radius: 12px;
-      background: rgba(255, 255, 255, 0.92);
-      color: var(--ink);
-      font: inherit;
+      font-size: 12px;
+      font-family: "DM Sans", sans-serif;
+      padding: 8px 10px;
+      border: 0.5px solid rgba(0, 0, 0, 0.15);
+      border-radius: 6px;
+      background: #f7f7f5;
+      color: #111;
+      outline: none;
+      transition: border-color 0.15s;
     }
 
-    .text-input::placeholder {
-      color: rgba(94, 105, 109, 0.85);
+    .sidebar input[type="text"]:focus {
+      border-color: rgba(0, 0, 0, 0.4);
     }
 
-    .submit-button {
+    .sidebar input[type="text"]::placeholder {
+      color: #bbb;
+    }
+
+    .route-btn {
       width: 100%;
-      padding: 12px 16px;
-      border: 1px solid rgba(15, 118, 110, 0.25);
-      border-radius: 12px;
-      background: var(--accent);
-      color: #ffffff;
-      font: inherit;
-      font-weight: 700;
+      padding: 9px;
+      font-size: 12px;
+      font-family: "DM Sans", sans-serif;
+      font-weight: 500;
+      letter-spacing: 0.03em;
+      background: #111;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
       cursor: pointer;
+      transition: opacity 0.15s;
     }
 
-    .submit-button:disabled {
+    .route-btn:hover {
+      opacity: 0.85;
+    }
+
+    .route-btn:disabled {
       cursor: wait;
       opacity: 0.7;
     }
 
-    .detour-button {
-      width: 100%;
-      padding: 14px 16px;
-      border: 1px solid rgba(23, 33, 39, 0.12);
-      border-radius: 14px;
-      background: rgba(255, 255, 255, 0.84);
-      color: var(--ink);
-      text-align: left;
-      cursor: pointer;
-      transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+    .route-btn.secondary {
+      background: #f7f7f5;
+      color: #111;
+      border: 0.5px solid rgba(0, 0, 0, 0.15);
     }
 
-    .detour-button:hover {
-      transform: translateY(-1px);
+    .route-btn.secondary.active {
+      background: #111;
+      color: #fff;
+      border-color: #111;
     }
 
-    .detour-button.active {
-      border-color: var(--accent);
-      background: rgba(15, 118, 110, 0.12);
-    }
-
-    .detour-button strong {
-      display: block;
-      margin-bottom: 4px;
-      font-size: 1rem;
-    }
-
-    .detour-button span {
-      display: block;
-      color: var(--muted);
-      line-height: 1.35;
-    }
-
-    .legend {
-      display: grid;
-      gap: 10px;
-    }
-
-    .legend-row {
+    .pref {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
+      padding: 7px 10px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: inherit;
+      text-align: left;
+      cursor: pointer;
+      transition: background 0.12s;
     }
 
-    .site-credit {
-      margin-top: 18px;
-      font-size: 0.92rem;
-      line-height: 1.5;
-      color: var(--muted);
+    .pref:hover {
+      background: #f7f7f5;
     }
 
-    .site-credit a {
-      color: var(--accent);
+    .pref.active {
+      background: #f7f7f5;
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .dot.green {
+      background: #22c55e;
+    }
+
+    .dot.amber {
+      background: #f59e0b;
+    }
+
+    .dot.red {
+      background: #ef4444;
+    }
+
+    .pref-label {
+      font-size: 12px;
+      color: #111;
+    }
+
+    .pref-sub {
+      font-size: 10px;
+      color: #999;
+      margin-left: auto;
+    }
+
+    .route-head {
+      font-size: 11px;
+      font-weight: 500;
+      color: #666;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .rdot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .rdot.blue {
+      background: #3b82f6;
+    }
+
+    .rdot.green {
+      background: #22c55e;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+
+    .metric-lbl {
+      font-size: 10px;
+      color: #999;
+    }
+
+    .metric-val {
+      font-size: 13px;
+      font-family: "DM Mono", monospace;
+      color: #111;
+    }
+
+    .footnote {
+      font-size: 14px;
+      line-height: 1.45;
+      color: #6f6f6f;
+      margin-top: auto;
+      padding-top: 18px;
+      font-weight: 300;
+    }
+
+    .footnote a {
+      color: #0f766e;
       text-decoration: none;
     }
 
-    .site-credit a:hover {
+    .footnote a:hover {
       text-decoration: underline;
     }
 
@@ -256,122 +284,199 @@
     @media (max-width: 960px) {
       .layout {
         grid-template-columns: 1fr;
-        grid-template-rows: auto 100vh;
+        grid-template-rows: auto minmax(60svh, 1fr);
         height: auto;
       }
 
       .sidebar {
+        width: auto;
         height: auto;
         border-right: 0;
-        border-bottom: 1px solid rgba(23, 33, 39, 0.08);
+        border-bottom: 0.5px solid rgba(0, 0, 0, 0.12);
       }
 
       .map-wrap,
       #map {
-        height: 100vh;
-        min-height: 100vh;
+        height: 60svh;
+        min-height: 60svh;
       }
     }
+
+    @media (max-width: 640px) {
+      .sidebar {
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        gap: 16px;
+        max-height: min(46svh, 420px);
+        padding: 16px 14px 14px;
+        background: rgba(255, 255, 255, 0.98);
+        backdrop-filter: blur(12px);
+      }
+
+      .logo {
+        font-size: 12px;
+      }
+
+      .divider {
+        display: none;
+      }
+
+      .section {
+        gap: 6px;
+      }
+
+      .summary-section {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        align-items: end;
+        column-gap: 10px;
+      }
+
+      .summary-section .label {
+        margin: 0;
+      }
+
+      .summary-section .stat {
+        justify-self: end;
+      }
+
+      .route-section {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+
+      #address-form {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px !important;
+      }
+
+      #address-form input {
+        min-width: 0;
+      }
+
+      #address-submit,
+      #map-pick-toggle {
+        grid-column: 1 / -1;
+      }
+
+      .preference-section {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 6px;
+      }
+
+      .pref {
+        padding: 10px;
+      }
+
+      .pref-label {
+        font-size: 13px;
+      }
+
+      .metrics-section {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px 12px;
+      }
+
+      .metrics-section .route-head,
+      .metrics-section .metrics {
+        margin: 0;
+      }
+
+      .footnote {
+        margin-top: 0;
+        padding-top: 2px;
+        font-size: 12px;
+      }
+
+      .map-wrap,
+      #map {
+        height: 54svh;
+        min-height: 54svh;
+      }
+    }
+
   </style>
 </head>
 
 <body>
   <div class="layout">
-    <aside class="sidebar">
-      <h1>SidewalkShed</h1>
-      <p class="lede">
-        Enter two addresses in Manhattan and compare the shortest walk with a scaffold-favoring alternative. The app
-        geocodes each address, snaps both endpoints onto the street graph, and biases the route toward covered blocks
-        when weather calls for it.
-      </p>
+    <aside class="sidebar" id="sidebar">
+      <div class="logo">SidewalkShed</div>
 
-      <div class="panel">
-        <span class="label">Loaded Scaffolds</span>
-        <div class="value" id="total-count">Loading...</div>
+      <div class="divider"></div>
+
+      <div class="section summary-section">
+        <span class="label">Scaffolds</span>
+        <span class="stat" id="total-count">—</span>
       </div>
 
-      <div class="panel">
-        <span class="label">Current Weather</span>
-        <div class="value" id="weather-condition">Loading...</div>
-        <div style="margin-top: 8px; color: var(--muted);" id="weather-precip">Checking precipitation...</div>
-      </div>
-
-      <div class="panel">
-        <span class="label">Route Addresses</span>
-          <form class="address-form" id="address-form">
-            <label class="address-field">
-              <span class="label" style="margin-bottom: 0;">Your Location</span>
-              <input class="text-input" id="point-a-input" name="point-a" type="text"
-                placeholder="350 5th Ave, New York, NY" autocomplete="street-address">
-            </label>
-            <label class="address-field">
-              <span class="label" style="margin-bottom: 0;">Destination</span>
-              <input class="text-input" id="point-b-input" name="point-b" type="text"
-                placeholder="11 Wall St, New York, NY" autocomplete="street-address">
-            </label>
-          <button class="submit-button" id="address-submit" type="submit">Route Between Addresses</button>
+      <div class="section route-section">
+        <span class="label">Route</span>
+        <form id="address-form" class="section" style="gap: 6px;">
+          <input type="text" id="point-a-input" name="point-a" placeholder="From" autocomplete="street-address">
+          <input type="text" id="point-b-input" name="point-b" placeholder="To" autocomplete="street-address">
+          <button class="route-btn" id="address-submit" type="submit">Find route</button>
         </form>
+        <button class="route-btn secondary" id="map-pick-toggle" type="button">Use map clicks</button>
+        <div class="status-text" id="route-status">Enter both route addresses to begin.</div>
+        <div id="point-a" hidden>Not set</div>
+        <div id="point-b" hidden>Not set</div>
       </div>
 
-      <div class="panel">
-        <span class="label">Resolved Location</span>
-        <div class="point-value" id="point-a">Not set</div>
-        <span class="label" style="margin-top: 12px;">Resolved Destination</span>
-        <div class="point-value" id="point-b">Not set</div>
+      <div class="section preference-section">
+        <span class="label">Preference</span>
+        <button class="pref detour-button active" data-mode="minimal" type="button">
+          <span class="dot green"></span>
+          <span class="pref-label">Minimal detour</span>
+          <span class="pref-sub">+10%</span>
+        </button>
+        <button class="pref detour-button" data-mode="moderate" type="button">
+          <span class="dot amber"></span>
+          <span class="pref-label">A bit wetter</span>
+          <span class="pref-sub">+30%</span>
+        </button>
+        <button class="pref detour-button" data-mode="max" type="button">
+          <span class="dot red"></span>
+          <span class="pref-label">Keep me dry</span>
+          <span class="pref-sub">+75%</span>
+        </button>
       </div>
 
-      <div class="panel">
-        <span class="label">Route Preference</span>
-        <div class="detour-options">
-          <button class="detour-button" data-mode="minimal" type="button">
-            <strong>🟢 Minimal detour</strong>
-            <span>Minimal detour, up to 10% longer.</span>
-          </button>
-          <button class="detour-button" data-mode="moderate" type="button">
-            <strong>🟡 A bit wetter is fine</strong>
-            <span>Moderate detour, up to 30% longer.</span>
-          </button>
-          <button class="detour-button" data-mode="max" type="button">
-            <strong>🔴 Keep me dry</strong>
-            <span>Maximum detour, up to 75% longer.</span>
-          </button>
+      <div class="divider"></div>
+
+      <div class="section metrics-section">
+        <div class="route-head"><span class="rdot blue"></span>Shortest</div>
+        <div class="metrics">
+          <div>
+            <div class="metric-lbl">Distance</div>
+            <div class="metric-val" id="shortest-distance">—</div>
+          </div>
+          <div>
+            <div class="metric-lbl">Scaffolds</div>
+            <div class="metric-val" id="shortest-count">—</div>
+          </div>
         </div>
-        <div id="route-status" style="margin-top: 12px; color: var(--muted); line-height: 1.4;">
-          Enter both route addresses to begin.
+
+        <div class="route-head"><span class="rdot green"></span>Scaffold</div>
+        <div class="metrics">
+          <div>
+            <div class="metric-lbl">Distance</div>
+            <div class="metric-val" id="scaffold-distance">—</div>
+          </div>
+          <div>
+            <div class="metric-lbl">Scaffolds</div>
+            <div class="metric-val" id="scaffold-count">—</div>
+          </div>
         </div>
+        <div id="pct-longer" hidden>—</div>
       </div>
 
-      <div class="route-card">
-        <div class="route-title">
-          <span class="swatch" style="background: var(--blue);"></span>
-          <strong>Shortest Route</strong>
-        </div>
-        <div class="route-metric"><span>Distance</span><strong id="shortest-distance">-</strong></div>
-        <div class="route-metric"><span>Scaffolds Along Route</span><strong id="shortest-count">-</strong></div>
-      </div>
-
-      <div class="route-card">
-        <div class="route-title">
-          <span class="swatch" style="background: var(--green);"></span>
-          <strong>Scaffold Route</strong>
-        </div>
-        <div class="route-metric"><span>Distance</span><strong id="scaffold-distance">-</strong></div>
-        <div class="route-metric"><span>Scaffolds Along Route</span><strong id="scaffold-count">-</strong></div>
-        <div class="route-metric"><span>Longer Than Shortest</span><strong id="pct-longer">-</strong></div>
-      </div>
-
-      <div class="panel legend">
-        <div class="legend-row"><span class="swatch" style="background: var(--shed);"></span><span>Scaffold
-            marker</span></div>
-        <div class="legend-row"><span class="swatch" style="background: var(--blue);"></span><span>Shortest walking
-            route</span></div>
-        <div class="legend-row"><span class="swatch" style="background: var(--green);"></span><span>Weather-aware
-            scaffold route</span></div>
-        <div class="legend-row"><span class="swatch" style="background: var(--a);"></span><span>Your location</span></div>
-        <div class="legend-row"><span class="swatch" style="background: var(--b);"></span><span>Destination</span></div>
-      </div>
-
-      <div class="site-credit">
+      <div class="footnote">
         Built by <a href="https://github.com/l-matthew07" target="_blank" rel="noreferrer">l-matthew07</a>.<br>
         View the project on <a href="https://github.com/l-matthew07/sidewalk-sheds" target="_blank"
           rel="noreferrer">GitHub</a>.
@@ -401,14 +506,13 @@
     const routeLayer = L.layerGroup().addTo(map);
 
     const totalCountEl = document.getElementById("total-count");
-    const weatherConditionEl = document.getElementById("weather-condition");
-    const weatherPrecipEl = document.getElementById("weather-precip");
     const pointAEl = document.getElementById("point-a");
     const pointBEl = document.getElementById("point-b");
     const pointAInputEl = document.getElementById("point-a-input");
     const pointBInputEl = document.getElementById("point-b-input");
     const addressFormEl = document.getElementById("address-form");
     const addressSubmitEl = document.getElementById("address-submit");
+    const mapPickToggleEl = document.getElementById("map-pick-toggle");
     const detourButtons = Array.from(document.querySelectorAll(".detour-button"));
     const routeStatusEl = document.getElementById("route-status");
     const shortestDistanceEl = document.getElementById("shortest-distance");
@@ -436,9 +540,7 @@
     let scaffoldRouteLayer = null;
     let routeRequestSerial = 0;
     let selectedDetourMode = "minimal";
-    let weatherSuggestedMode = "minimal";
-    let weatherSuppressesOptimizer = false;
-    let detourOverride = false;
+    let mapPickMode = false;
 
     function formatPoint(label, latlng) {
       if (label) {
@@ -469,6 +571,47 @@
       pointBEl.textContent = formatPoint(pointBLabel, pointB);
     }
 
+    function setMapPickMode(enabled) {
+      mapPickMode = enabled;
+      mapPickToggleEl.classList.toggle("active", enabled);
+      mapPickToggleEl.textContent = enabled ? "Map clicks on" : "Use map clicks";
+      map.getContainer().style.cursor = enabled ? "crosshair" : "";
+
+      if (enabled) {
+        if (!pointA) {
+          routeStatusEl.textContent = "Map click mode: click once for point A.";
+        } else if (!pointB) {
+          routeStatusEl.textContent = "Map click mode: click again for point B.";
+        } else {
+          routeStatusEl.textContent = "Map click mode: click again to reset point A.";
+        }
+      } else if (!pointA || !pointB) {
+        routeStatusEl.textContent = "Enter both route addresses to begin.";
+      }
+    }
+
+    function setPointFromMap(slot, latlng) {
+      const coords = { lat: latlng.lat, lng: latlng.lng };
+      const label = `Map pick ${slot.toUpperCase()}`;
+      const textValue = `${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}`;
+
+      if (slot === "a") {
+        pointA = coords;
+        pointALabel = label;
+        pointAInputEl.value = textValue;
+      } else {
+        pointB = coords;
+        pointBLabel = label;
+        pointBInputEl.value = textValue;
+      }
+    }
+
+    function resetPointB() {
+      pointB = null;
+      pointBLabel = null;
+      pointBInputEl.value = "";
+    }
+
     function addEndpointMarker(latlng, label, color) {
       return L.circleMarker(latlng, {
         radius: 8,
@@ -480,18 +623,18 @@
       }).bindTooltip(label, { permanent: true, direction: "top", offset: [0, -10] }).addTo(routeLayer);
     }
 
-      function redrawEndpoints() {
-        routeLayer.clearLayers();
-        pointAMarker = null;
-        pointBMarker = null;
+    function redrawEndpoints() {
+      routeLayer.clearLayers();
+      pointAMarker = null;
+      pointBMarker = null;
 
-        if (pointA) {
-          pointAMarker = addEndpointMarker(pointA, "You", "#047857");
-        }
-        if (pointB) {
-          pointBMarker = addEndpointMarker(pointB, "Dest", "#7c3aed");
-        }
+      if (pointA) {
+        pointAMarker = addEndpointMarker(pointA, "You", "#047857");
       }
+      if (pointB) {
+        pointBMarker = addEndpointMarker(pointB, "Dest", "#7c3aed");
+      }
+    }
 
     function clearRoutes() {
       if (shortestRouteLayer) {
@@ -516,33 +659,6 @@
       detourButtons.forEach((button) => {
         button.classList.toggle("active", button.dataset.mode === activeMode);
       });
-    }
-
-    function applyWeatherState(weather) {
-      weatherConditionEl.textContent = weather.condition;
-      weatherPrecipEl.textContent = `Precipitation: ${Number(weather.precip_mm_hr).toFixed(1)} mm/hr`;
-      weatherSuggestedMode = weather.suggested_mode;
-
-      if (weatherSuggestedMode === "none") {
-        weatherSuppressesOptimizer = true;
-        detourOverride = false;
-        setButtonState(null);
-        if (!pointA || !pointB) {
-          routeStatusEl.textContent = "Enter both route addresses to begin.";
-        } else {
-          routeStatusEl.textContent = "No rain detected — enjoy the sun";
-        }
-        return;
-      }
-
-      weatherSuppressesOptimizer = false;
-      selectedDetourMode = weatherSuggestedMode;
-      setButtonState(selectedDetourMode);
-      if (!pointA || !pointB) {
-        routeStatusEl.textContent = "Enter both route addresses to begin.";
-      } else {
-        routeStatusEl.textContent = `Weather suggests "${selectedDetourMode}".`;
-      }
     }
 
     async function geocodeAddress(address) {
@@ -590,6 +706,37 @@
       }
     }
 
+    async function handleMapPick(latlng) {
+      if (!pointA) {
+        setPointFromMap("a", latlng);
+        resetPointB();
+        clearRoutes();
+        resetRouteStats();
+        updatePointLabels();
+        redrawEndpoints();
+        routeStatusEl.textContent = "Map click mode: click again for point B.";
+        return;
+      }
+
+      if (!pointB) {
+        setPointFromMap("b", latlng);
+        updatePointLabels();
+        redrawEndpoints();
+        clearRoutes();
+        resetRouteStats();
+        await requestRoutes();
+        return;
+      }
+
+      setPointFromMap("a", latlng);
+      resetPointB();
+      clearRoutes();
+      resetRouteStats();
+      updatePointLabels();
+      redrawEndpoints();
+      routeStatusEl.textContent = "Point A reset. Click again for point B.";
+    }
+
     function scaffoldPopupContent(scaffold) {
       return `
           <strong>${scaffold.address || "Unknown address"}</strong><br>
@@ -620,18 +767,18 @@
       }
     }
 
-    function updateStats(payload, showOptimizer) {
+    function updateStats(payload) {
       shortestDistanceEl.textContent = formatDistance(payload.shortest.distance_m);
       shortestCountEl.textContent = payload.shortest.scaffolds_covered ?? "-";
 
-      if (showOptimizer && payload.scaffold_route.geojson) {
+      if (payload.scaffold_route.geojson) {
         scaffoldDistanceEl.textContent = formatDistance(payload.scaffold_route.distance_m);
         scaffoldCountEl.textContent = payload.scaffold_route.scaffolds_covered;
         const pctLonger = ((payload.scaffold_route.distance_m - payload.shortest.distance_m) / payload.shortest.distance_m) * 100;
         pctLongerEl.textContent = formatPercent(Math.max(0, pctLonger));
       } else {
         scaffoldDistanceEl.textContent = "-";
-        scaffoldCountEl.textContent = showOptimizer ? "No viable detour" : "Override to compare";
+        scaffoldCountEl.textContent = "No viable detour";
         pctLongerEl.textContent = "-";
       }
     }
@@ -663,23 +810,18 @@
           throw new Error(payload.error || "Route request failed.");
         }
 
-        applyWeatherState(payload.weather);
-        const showOptimizer = !weatherSuppressesOptimizer || detourOverride;
-
         clearRoutes();
         redrawEndpoints();
 
         shortestRouteLayer = drawRoute(payload.shortest.geojson, "#2563eb", null);
-        if (showOptimizer && payload.scaffold_route.geojson) {
+        if (payload.scaffold_route.geojson) {
           scaffoldRouteLayer = drawRoute(payload.scaffold_route.geojson, "#16a34a", "10 8");
         }
 
-        updateStats(payload, showOptimizer);
+        updateStats(payload);
         fitRouteBounds();
 
-        if (!showOptimizer) {
-          routeStatusEl.textContent = "No rain detected — enjoy the sun";
-        } else if (payload.scaffold_route.geojson) {
+        if (payload.scaffold_route.geojson) {
           routeStatusEl.textContent = `${payload.scaffold_route.waypoints.length} snapped scaffold waypoint(s) used.`;
         } else {
           routeStatusEl.textContent = "No scaffold detour fit within the current mode.";
@@ -708,21 +850,31 @@
       }
     }
 
-    async function loadWeather() {
-      const response = await fetch("/api/weather");
-      const weather = await response.json();
-      applyWeatherState(weather);
-    }
-
     detourButtons.forEach((button) => {
       button.addEventListener("click", () => {
-        detourOverride = true;
-        weatherSuppressesOptimizer = false;
         selectedDetourMode = button.dataset.mode;
         setButtonState(selectedDetourMode);
         if (pointA && pointB) {
           requestRoutes();
         }
+      });
+    });
+
+    mapPickToggleEl.addEventListener("click", () => {
+      setMapPickMode(!mapPickMode);
+    });
+
+    map.on("click", (event) => {
+      if (!mapPickMode) {
+        return;
+      }
+
+      handleMapPick(event.latlng).catch((error) => {
+        clearRoutes();
+        redrawEndpoints();
+        resetRouteStats();
+        routeStatusEl.textContent = error.message;
+        console.error("Failed to set route from map clicks", error);
       });
     });
 
@@ -737,9 +889,8 @@
       });
     });
 
-    Promise.all([loadScaffolds(), loadWeather()]).catch((error) => {
+    loadScaffolds().catch((error) => {
       totalCountEl.textContent = "Error";
-      weatherConditionEl.textContent = "Unavailable";
       routeStatusEl.textContent = "Failed to initialize app data.";
       console.error("Initialization failed", error);
     });
