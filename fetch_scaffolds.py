@@ -52,7 +52,12 @@ def parse_date(raw: Optional[str]) -> Optional[date]:
     if not raw:
         return None
     raw = raw.strip()
-    for fmt in ("%m/%d/%Y", "%m/%d/%Y %H:%M:%S"):
+    for fmt in (
+        "%m/%d/%Y",
+        "%m/%d/%Y %H:%M:%S",
+        "%Y-%m-%d",
+        "%Y-%m-%d %H:%M:%S",
+    ):
         try:
             return datetime.strptime(raw, fmt).date()
         except ValueError:

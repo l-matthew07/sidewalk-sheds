@@ -2,8 +2,6 @@
 import json
 import os
 import pickle
-import threading
-import time
 import tracemalloc
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -17,45 +15,27 @@ from router import ScaffoldRouter
 BASE_DIR = Path(__file__).resolve().parent
 SCAFFOLDS_PATH = BASE_DIR / "scaffolds.json"
 GRAPH_DATA_PATH = BASE_DIR / "graph_data.pkl"
-WTTR_URL = "https://wttr.in/New York"
 GOOGLE_GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
 NOMINATIM_SEARCH_URL = "https://nominatim.openstreetmap.org/search"
-WEATHER_TIMEOUT_SECONDS = 8
 GEOCODE_TIMEOUT_SECONDS = 10
-WEATHER_TTL_SECONDS = 600
 ROUTE_HIT_THRESHOLD_DEGREES = 0.0004
 WALKING_SPEED_MPS = 1.4
 
-DETOUR_LAMBDAS = {
-    "minimal": 0.3,
-    "moderate": 0.7,
-    "max": 1.2,
+DETOUR_BIASES = {
+    "minimal": 0.18,
+    "moderate": 0.42,
+    "max": 0.68,
 }
 
 app = Flask(__name__)
 HTTP = requests.Session()
 HTTP.headers.update({"User-Agent": "SidewalkShed/0.5"})
-WEATHER_LOCK = threading.Lock()
-WEATHER_CACHE: Dict[str, object] = {"fetched_at": 0.0, "payload": None}
 
 
 def log(message: str) -> None:
     print(f"[SidewalkShed] {message}", flush=True)
 
 
-def env_flag(name: str, default: bool = False) -> bool:
-    raw = os.environ.get(name)
-    if raw is None:
-        return default
-    return raw.strip().lower() in {"1", "true", "yes", "on"}
-
-
-DEV_BAD_WEATHER_MODE = env_flag("SIDEWALKSHED_DEV_BAD_WEATHER")
-DEV_WEATHER_OVERRIDE = {
-    "condition": "Heavy rain",
-    "precip_mm_hr": 12.0,
-    "suggested_mode": "max",
-}
 GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY")
 
 
@@ -92,37 +72,6 @@ def load_scaffolds() -> List[Dict[str, object]]:
             }
         )
     return cleaned
-
-
-def normalize_precip_mm(raw: object) -> float:
-    try:
-        return max(0.0, float(raw))
-    except (TypeError, ValueError):
-        return 0.0
-
-
-def suggested_mode_for_precip(precip_mm_hr: float) -> str:
-    if precip_mm_hr <= 0.0:
-        return "none"
-    if precip_mm_hr < 2.0:
-        return "minimal"
-    if precip_mm_hr <= 10.0:
-        return "moderate"
-    return "max"
-
-
-def fetch_weather() -> Dict[str, object]:
-    response = HTTP.get(WTTR_URL, params={"format": "j1"}, timeout=WEATHER_TIMEOUT_SECONDS)
-    response.raise_for_status()
-    payload = response.json()
-    current = (payload.get("current_condition") or [{}])[0]
-    precip_mm_hr = normalize_precip_mm(current.get("precipMM"))
-    condition = ((current.get("weatherDesc") or [{"value": "Unknown"}])[0]).get("value", "Unknown")
-    return {
-        "condition": condition,
-        "precip_mm_hr": precip_mm_hr,
-        "suggested_mode": suggested_mode_for_precip(precip_mm_hr),
-    }
 
 
 def google_geocode(address: str):
@@ -195,31 +144,6 @@ def geocode_address(address: str) -> Dict[str, object]:
     raise LookupError("Address not found.")
 
 
-def get_weather(force: bool = False) -> Dict[str, object]:
-    if DEV_BAD_WEATHER_MODE:
-        return DEV_WEATHER_OVERRIDE.copy()
-
-    with WEATHER_LOCK:
-        cached = WEATHER_CACHE.get("payload")
-        fetched_at = float(WEATHER_CACHE.get("fetched_at", 0.0))
-        if not force and cached and (time.time() - fetched_at) < WEATHER_TTL_SECONDS:
-            return cached  # type: ignore[return-value]
-
-    try:
-        payload = fetch_weather()
-    except requests.RequestException:
-        payload = {
-            "condition": "Unknown",
-            "precip_mm_hr": 0.0,
-            "suggested_mode": "none",
-        }
-
-    with WEATHER_LOCK:
-        WEATHER_CACHE["payload"] = payload
-        WEATHER_CACHE["fetched_at"] = time.time()
-    return payload
-
-
 def load_router() -> Tuple[dict, ScaffoldRouter]:
     if not GRAPH_DATA_PATH.exists():
         raise FileNotFoundError(
@@ -260,11 +184,6 @@ def build_route_payload(
 GRAPH_DATA, ROUTER = load_router()
 SCAFFOLDS = load_scaffolds()
 log(f"Scaffolds loaded: {len(SCAFFOLDS)}")
-if DEV_BAD_WEATHER_MODE:
-    log(
-        "Dev bad weather mode enabled: "
-        f"{DEV_WEATHER_OVERRIDE['condition']} at {DEV_WEATHER_OVERRIDE['precip_mm_hr']} mm/hr"
-    )
 log("Ready.")
 
 
@@ -276,11 +195,6 @@ def index() -> str:
 @app.route("/api/scaffolds")
 def api_scaffolds():
     return jsonify(SCAFFOLDS)
-
-
-@app.route("/api/weather")
-def api_weather():
-    return jsonify(get_weather())
 
 
 @app.route("/api/geocode", methods=["POST"])
@@ -304,21 +218,20 @@ def api_route():
         start = parse_point(payload, "start")
         end = parse_point(payload, "end")
         detour_mode = str(payload["detour_mode"])
-        if detour_mode not in DETOUR_LAMBDAS:
+        if detour_mode not in DETOUR_BIASES:
             raise ValueError("invalid detour mode")
 
         shortest_nodes, shortest_distance = ROUTER.route(start[0], start[1], end[0], end[1], 0.0)
         shortest = build_route_payload(ROUTER, SCAFFOLDS, shortest_nodes, shortest_distance)
 
-        lambda_val = DETOUR_LAMBDAS[detour_mode]
-        scaffold_nodes, scaffold_distance = ROUTER.route(start[0], start[1], end[0], end[1], lambda_val)
+        detour_bias = DETOUR_BIASES[detour_mode]
+        scaffold_nodes, scaffold_distance = ROUTER.route(start[0], start[1], end[0], end[1], detour_bias)
         scaffold_route = build_route_payload(ROUTER, SCAFFOLDS, scaffold_nodes, scaffold_distance)
 
         return jsonify(
             {
                 "shortest": shortest,
                 "scaffold_route": scaffold_route,
-                "weather": get_weather(),
             }
         )
     except (KeyError, TypeError, ValueError):
